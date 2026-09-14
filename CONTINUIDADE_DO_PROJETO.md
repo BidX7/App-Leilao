@@ -50,8 +50,6 @@ Concluído:
 
 Pendente:
 
-- liberar permissão de escrita da integração GitHub;
-- publicar os dois commits na branch `main`;
 - testar no Expo Go em um Android físico;
 - validar teclado, rolagem, tela pequena e uso offline;
 - gerar um APK instalável, se desejado;
@@ -60,10 +58,10 @@ Pendente:
 ## Histórico dos commits
 
 - `82f1ef1` — Initial commit (já está no GitHub)
-- `bca4ae9` — feat: implement auction analysis MVP (local, aguardando envio)
-- `fdf4663` — test: validate calculations and document Android checks (local, aguardando envio)
+- `b88f5ab` — feat: implement auction analysis MVP (publicado na `main`)
+- `90c2a76` — docs: add setup and Android validation guide (publicado na `main`)
 
-Os identificadores dos dois commits locais poderão mudar se outra pessoa reconstruir o histórico. O conteúdo deste pacote é a fonte principal para a retomada.
+O conteúdo deste repositório na branch `main` é a fonte principal para a retomada.
 
 ## Estrutura do pacote
 

@@ -109,3 +109,8 @@ A verificação online `npx expo install --check` não terminou porque o proxy d
 - Não publicar chaves de assinatura Android no repositório.
 - Os cálculos são estimativas. Antes de comprar um lote real, considerar ensaio do metal, pedras, perdas de refino, taxas, impostos, frete e comissão do leiloeiro.
 - A recuperação de 98% e a margem mínima de 15% estão fixas nesta versão e poderão virar campos configuráveis em uma versão futura.
+
+
+## Atualização — consulta assistida de lotes (16/09/2026)
+
+A análise com refino é a tela inicial e leva os custos da refinadora em conta para COMPRAR, CUIDADO e NÃO COMPRAR. O usuário pode informar o número do lote, abrir a Vitrine da Caixa, copiar os detalhes e colá-los no app: número, peso total e lance mínimo são conferidos e importados. Peso da liga sem pedras, teor, amostra, prata e preços continuam exigindo confirmação. A consulta automática direta pelo número ainda não foi validada; não anunciar essa etapa como concluída. Foram aprovados 14 testes e gerado o bundle Android, mas faltam APK e teste físico.

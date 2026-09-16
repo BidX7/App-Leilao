@@ -6,6 +6,12 @@ MVP em React Native/Expo para estimar a viabilidade da compra de lotes de ouro.
 
 O aplicativo abre na **Análise com refino**, que fornece a decisão de compra. A **Simulação auxiliar** preserva a estimativa original, mas não exibe recomendação de compra porque não inclui a taxa da refinadora:
 
+### Importar dados de um lote da Caixa
+
+Na Análise com refino, informe o número completo do lote, abra a Vitrine oficial e cole o texto de detalhes. O app exige que o texto contenha o mesmo número e extrai somente o peso **total** anunciado e o lance mínimo. Ele não converte o peso total em ouro, não estima teor nem detecta pedras pela imagem. Após importar, informe a liga sem pedras, teor, custos e preços para calcular. Se o peso da liga ultrapassar o peso total ou o preço de compra ficar abaixo do lance mínimo, a análise é bloqueada.
+
+A busca direta na Caixa por número de lote ainda não foi integrada: a Vitrine carrega dados na página e não foi confirmado um endpoint público estável para consulta nativa. O botão abre o site oficial; o usuário copia os detalhes. Esta etapa mantém o cálculo manual disponível se a Caixa mudar o site ou estiver inacessível.
+
 - ouro fino conforme peso e teor;
 - recuperação estimada de 98%;
 - valor recuperável pela cotação informada;

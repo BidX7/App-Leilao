@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { analisarLote, analisarRefino3M, formatarReal } from './src/auction';
+import { analisarLote, analisarRefino3M, formatarReal, parseNumero } from './src/auction';
+import { extrairDadosLote } from './src/caixa';
 
 const CAMPOS = [
   ['peso', 'Peso do metal analisado, sem pedras (g)', 'decimal-pad'],
@@ -30,6 +31,23 @@ export default function App() {
   const [camposRefino, setCamposRefino] = useState({ peso: '', amostra: '', teor: '', kitco: '', desconto: '', pesoPrata: '', precoPrata: '', precoVendaOuro: '', lance: '', custos: '0' });
   const [resultado, setResultado] = useState(null);
   const [erro, setErro] = useState('');
+  const [numeroLote, setNumeroLote] = useState('');
+  const [textoLote, setTextoLote] = useState('');
+  const [loteCaixa, setLoteCaixa] = useState(null);
+
+  function importarLote() {
+    try {
+      const lote = extrairDadosLote(textoLote, numeroLote);
+      setLoteCaixa(lote);
+      setCamposRefino((anterior) => ({ ...anterior, peso: '', teor: '', lance: String(lote.lanceMinimo) }));
+      setResultado(null);
+      setErro('');
+    } catch (error) {
+      setLoteCaixa(null);
+      setResultado(null);
+      setErro(error.message);
+    }
+  }
 
   function atualizar(nome, valor) {
     const atualizarCampos = modo === 'refino' ? setCamposRefino : setCampos;
@@ -46,6 +64,12 @@ export default function App() {
 
   function analisar() {
     try {
+      if (modo === 'refino' && loteCaixa && parseNumero(camposRefino.peso) > loteCaixa.pesoTotal) {
+        throw new Error('O peso da liga sem pedras não pode superar o peso total anunciado pela Caixa.');
+      }
+      if (modo === 'refino' && loteCaixa && parseNumero(camposRefino.lance) < loteCaixa.lanceMinimo) {
+        throw new Error('O preço de compra não pode ser inferior ao lance mínimo publicado.');
+      }
       setResultado(modo === 'refino' ? analisarRefino3M(camposRefino) : analisarLote(campos));
       setErro('');
     } catch (error) {
@@ -71,6 +95,24 @@ export default function App() {
               <Text style={styles.modoTexto}>Análise com refino</Text>
             </TouchableOpacity>
           </View>
+          {modo === 'refino' && <View style={styles.card}>
+            <Text style={styles.titulo}>Consultar lote da Caixa</Text>
+            <Text style={styles.orientacao}>Digite o número completo. Abra a Vitrine oficial, copie os detalhes do lote e cole aqui. A consulta direta pelo número ainda está em desenvolvimento.</Text>
+            <TextInput accessibilityLabel="Número do lote da Caixa" style={styles.input} value={numeroLote} onChangeText={(v) => { setNumeroLote(v); setLoteCaixa(null); setResultado(null); }} placeholder="0041.000257-7" placeholderTextColor="#626b79" />
+            <TouchableOpacity accessibilityRole="link" style={styles.botao} onPress={() => Linking.openURL('https://vitrinedejoias.caixa.gov.br/Paginas/default.aspx').catch(() => setErro('Não foi possível abrir a Vitrine da Caixa.'))}>
+              <Text style={styles.botaoTexto}>ABRIR VITRINE DA CAIXA</Text>
+            </TouchableOpacity>
+            <TextInput accessibilityLabel="Detalhes copiados da Caixa" style={[styles.input, { marginTop: 14, minHeight: 100 }]} multiline value={textoLote} onChangeText={(v) => { setTextoLote(v); setLoteCaixa(null); setResultado(null); }} placeholder="Cole a descrição, o peso total, o lance mínimo e o número do lote" placeholderTextColor="#626b79" />
+            <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={importarLote}><Text style={styles.botaoTexto}>IMPORTAR DADOS PUBLICADOS</Text></TouchableOpacity>
+            {loteCaixa && <View>
+              <Text style={styles.info}>Lote: {loteCaixa.numero}</Text>
+              <Text style={styles.info}>Peso total no texto colado: {loteCaixa.pesoTotal.toFixed(2)} g (pode incluir pedras)</Text>
+              <Text style={styles.info}>Lance mínimo no texto colado: {formatarReal(loteCaixa.lanceMinimo)}</Text>
+              <Text style={styles.info}>{loteCaixa.descricao}</Text>
+              <Text style={styles.orientacao}>Informe abaixo o peso estimado da liga SEM pedras e o teor. Sem esses dados, não há recomendação de compra.</Text>
+            </View>}
+            {erro ? <Text style={styles.erro}>{erro}</Text> : null}
+          </View>}
           <View style={styles.card}>
             <Text style={styles.titulo}>Analisar lote</Text>
             <Text style={styles.orientacao}>{modo === 'refino'

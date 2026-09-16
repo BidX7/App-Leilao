@@ -3,6 +3,20 @@ import { KeyboardAvoidingView, Linking, Platform, SafeAreaView, ScrollView, Styl
 import { StatusBar } from 'expo-status-bar';
 import { analisarLote, analisarRefino3M, formatarReal, parseNumero } from './src/auction';
 import { extrairDadosLote } from './src/caixa';
+import { LOTES_2018, FONTES_2018 } from './src/historico';
+import { analisarPreLance } from './src/prelance';
+
+const CAMPOS_PRE = [
+  ['pesoTotal', 'Peso total anunciado (g)'],
+  ['pesoMetalMinimo', 'Hipótese mínima de liga de ouro, sem pedras (g)'],
+  ['teor', 'Teor declarado ou hipótese (milésimos)'],
+  ['kitco', 'Ouro fino Kitco (R$/g)'],
+  ['desconto', 'Desconto da refinadora (R$/g)'],
+  ['precoVendaOuro', 'Preço de venda do ouro fino (R$/g)'],
+  ['lance', 'Lance que pretende oferecer (R$)'],
+  ['custos', 'Outros custos (R$)'],
+  ['tarifaPercentual', 'Tarifa sobre o lance (%)']
+];
 
 const CAMPOS = [
   ['peso', 'Peso do metal analisado, sem pedras (g)', 'decimal-pad'],
@@ -34,6 +48,15 @@ export default function App() {
   const [numeroLote, setNumeroLote] = useState('');
   const [textoLote, setTextoLote] = useState('');
   const [loteCaixa, setLoteCaixa] = useState(null);
+  const [exemplo, setExemplo] = useState(null);
+  const [camposPre, setCamposPre] = useState({ pesoTotal: '', pesoMetalMinimo: '', teor: '', kitco: '', desconto: '0', precoVendaOuro: '', lance: '', custos: '0', tarifaPercentual: '6' });
+
+  function usarExemplo(lote) {
+    setExemplo(lote);
+    setCamposPre({ pesoTotal: String(lote.pesoTotal).replace('.', ','), pesoMetalMinimo: '', teor: '', kitco: '', desconto: '0', precoVendaOuro: '', lance: String(lote.minimo), custos: '0', tarifaPercentual: '6' });
+    setResultado(null);
+    setErro('');
+  }
 
   function importarLote() {
     try {
@@ -50,7 +73,7 @@ export default function App() {
   }
 
   function atualizar(nome, valor) {
-    const atualizarCampos = modo === 'refino' ? setCamposRefino : setCampos;
+    const atualizarCampos = modo === 'pre' ? setCamposPre : modo === 'refino' ? setCamposRefino : setCampos;
     atualizarCampos((atual) => ({ ...atual, [nome]: valor }));
     setErro('');
     setResultado(null);
@@ -64,6 +87,11 @@ export default function App() {
 
   function analisar() {
     try {
+      if (modo === 'pre') {
+        setResultado(analisarPreLance(camposPre));
+        setErro('');
+        return;
+      }
       if (modo === 'refino' && loteCaixa && parseNumero(camposRefino.peso) > loteCaixa.pesoTotal) {
         throw new Error('O peso da liga sem pedras não pode superar o peso total anunciado pela Caixa.');
       }
@@ -88,6 +116,9 @@ export default function App() {
           <Text style={styles.logo}>APP LEILÃO</Text>
           <Text style={styles.subtitulo}>Inteligência para compra de metais</Text>
           <View style={styles.modos}>
+            <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: modo === 'pre' }} style={[styles.modo, modo === 'pre' && styles.modoAtivo]} onPress={() => selecionarModo('pre')}>
+              <Text style={styles.modoTexto}>Pré-lance</Text>
+            </TouchableOpacity>
             <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: modo === 'manual' }} style={[styles.modo, modo === 'manual' && styles.modoAtivo]} onPress={() => selecionarModo('manual')}>
               <Text style={styles.modoTexto}>Simulação auxiliar</Text>
             </TouchableOpacity>
@@ -95,6 +126,18 @@ export default function App() {
               <Text style={styles.modoTexto}>Análise com refino</Text>
             </TouchableOpacity>
           </View>
+          {modo === 'pre' && <View style={styles.card}>
+            <Text style={styles.titulo}>Casos oficiais de 2018</Text>
+            <Text style={styles.orientacao}>Catálogo e resultados da Caixa, Criciúma, 16/05/2018. Toque para carregar os dados publicados. O preço antigo não revela o peso nem o teor do ouro.</Text>
+            {LOTES_2018.map((lote) => <TouchableOpacity key={lote.numero} accessibilityRole="button" style={styles.botao} onPress={() => usarExemplo(lote)}><Text style={styles.botaoTexto}>{lote.numero} · {lote.pesoTotal.toFixed(2)} g</Text></TouchableOpacity>)}
+            {exemplo && <View>
+              <Text style={styles.info}>{exemplo.descricao}</Text>
+              <Text style={styles.info}>Mínimo: {formatarReal(exemplo.minimo)} · Lance vencedor publicado: {formatarReal(exemplo.lanceVencedor)} · Tarifa: {formatarReal(exemplo.tarifa)}</Text>
+              <Text style={styles.orientacao}>Resultado provisório até confirmação do pagamento. Peso de pedra informado: {exemplo.pedrasInformadas === null ? 'não consta' : `${exemplo.pedrasInformadas.toFixed(2)} g`}. Isso não prova o teor ou o peso da liga.</Text>
+            </View>}
+            <TouchableOpacity accessibilityRole="link" onPress={() => Linking.openURL(FONTES_2018.catalogo)}><Text style={styles.label}>Abrir catálogo oficial</Text></TouchableOpacity>
+            <TouchableOpacity accessibilityRole="link" onPress={() => Linking.openURL(FONTES_2018.resultado)}><Text style={styles.label}>Abrir resultado oficial</Text></TouchableOpacity>
+          </View>}
           {modo === 'refino' && <View style={styles.card}>
             <Text style={styles.titulo}>Consultar lote da Caixa</Text>
             <Text style={styles.orientacao}>Digite o número completo. Abra a Vitrine oficial, copie os detalhes do lote e cole aqui. A consulta direta pelo número ainda está em desenvolvimento.</Text>
@@ -115,13 +158,15 @@ export default function App() {
           </View>}
           <View style={styles.card}>
             <Text style={styles.titulo}>Analisar lote</Text>
-            <Text style={styles.orientacao}>{modo === 'refino'
+            <Text style={styles.orientacao}>{modo === 'pre'
+              ? 'Informe uma hipótese mínima justificável de liga sem pedras e o teor. Sem isso, nenhum lance seguro pode ser calculado. Cotações históricas de 2018 não são cotações atuais.'
+              : modo === 'refino'
               ? 'Simule a taxa da refinadora antes de comprar. Informe a liga de ouro sem pedras e a prata separadamente. Digite 0 para amostra ou prata somente se tiver confirmado que não existem.'
               : 'Simulação auxiliar sem custo de refinadora. Não use este resultado para decidir uma compra.'}</Text>
-            {(modo === 'refino' ? CAMPOS_REFINO : CAMPOS).map(([nome, label, keyboardType]) => (
+            {(modo === 'pre' ? CAMPOS_PRE : modo === 'refino' ? CAMPOS_REFINO : CAMPOS).map(([nome, label, keyboardType]) => (
               <View key={nome}>
                 <Text style={styles.label}>{label}</Text>
-                <TextInput accessibilityLabel={label} style={styles.input} value={modo === 'refino' ? camposRefino[nome] : campos[nome]} onChangeText={(valor) => atualizar(nome, valor)} keyboardType={keyboardType} placeholder="0" placeholderTextColor="#626b79" />
+                <TextInput accessibilityLabel={label} style={styles.input} value={modo === 'pre' ? camposPre[nome] : modo === 'refino' ? camposRefino[nome] : campos[nome]} onChangeText={(valor) => atualizar(nome, valor)} keyboardType={keyboardType || 'decimal-pad'} placeholder="0" placeholderTextColor="#626b79" />
               </View>
             ))}
             {erro ? <Text style={styles.erro}>{erro}</Text> : null}
@@ -131,6 +176,15 @@ export default function App() {
           </View>
           {resultado && (
             <View style={styles.resultado} accessibilityLiveRegion="polite">
+              {modo === 'pre' ? <>
+                <Text style={[styles.decisao, { color: '#f4c95d' }]}>CENÁRIO CONDICIONAL</Text>
+                <Text style={styles.info}>Ouro fino na hipótese mínima: {resultado.ouroFino.toFixed(2)} g</Text>
+                <Text style={styles.info}>Refino estimado (3%): {formatarReal(resultado.refino)}</Text>
+                <Text style={styles.info}>Tarifa estimada: {formatarReal(resultado.tarifa)}</Text>
+                <Text style={styles.info}>Lance máximo para ROI de 15%: {formatarReal(resultado.lanceMaximo)}</Text>
+                <Text style={styles.info}>Lucro nesse cenário: {formatarReal(resultado.lucro)}</Text>
+                <Text style={styles.orientacao}>{resultado.viavelNaHipotese ? 'O lance cabe apenas SE a hipótese mínima de metal e teor for verdadeira. Não é recomendação de compra.' : 'O lance ultrapassa o teto deste cenário.'}</Text>
+              </> : <>
               <Text style={[styles.decisao, { color: modo === 'refino' ? cor : '#f4c95d' }]}>{modo === 'refino' ? resultado.decisao : 'SIMULAÇÃO AUXILIAR'}</Text>
               <Text style={styles.info}>Ouro fino: {resultado.ouroFino.toFixed(2)} g</Text>
               {modo === 'refino' ? (
@@ -151,9 +205,10 @@ export default function App() {
               <Text style={styles.info}>Lance máximo: {formatarReal(resultado.lanceMax)}</Text>
               <Text style={styles.lucro}>Lucro estimado: {formatarReal(resultado.lucro)}</Text>
               <Text style={[styles.roi, { color: cor }]}>ROI: {resultado.roi === null ? 'não aplicável (custo zero)' : `${resultado.roi.toFixed(1)}%`}</Text>
+              </>}
             </View>
           )}
-          <Text style={styles.aviso}>{modo === 'refino'
+          <Text style={styles.aviso}>{modo === 'pre' ? 'Os casos de 2018 documentam peso total e preço de leilão; não documentam resultado do refino. A hipótese mínima de metal exige evidência independente.' : modo === 'refino'
             ? 'Conforme simulação 3M: taxa de 3% do ouro fino a Kitco menos desconto; prata cobrada pelo peso informado. Ouro devolvido integralmente após a amostra. Margem mínima de 15%. Confirme teor, pesagens, preços e cobrança com a refinadora antes de comprar.'
             : 'Estimativa antiga com recuperação de 98%, sem custo da refinadora. A decisão de compra exige a análise com refino.'}</Text>
           <Text style={styles.rodape}>App Leilão • MVP v0.1</Text>

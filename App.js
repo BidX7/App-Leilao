@@ -5,6 +5,7 @@ import { analisarLote, analisarRefino3M, formatarReal, parseNumero } from './src
 import { extrairDadosLote } from './src/caixa';
 import { LOTES_2018, FONTES_2018 } from './src/historico';
 import { analisarPreLance } from './src/prelance';
+import { prepararRefinoAposMedicao } from './src/medicao';
 
 const CAMPOS_PRE = [
   ['pesoTotal', 'Peso total anunciado (g)'],
@@ -50,12 +51,28 @@ export default function App() {
   const [loteCaixa, setLoteCaixa] = useState(null);
   const [exemplo, setExemplo] = useState(null);
   const [camposPre, setCamposPre] = useState({ pesoTotal: '', pesoMetalMinimo: '', teor: '', kitco: '', desconto: '0', precoVendaOuro: '', lance: '', custos: '0', tarifaPercentual: '6' });
+  const [pesoMedido, setPesoMedido] = useState('');
+  const [teorMedido, setTeorMedido] = useState('');
 
   function usarExemplo(lote) {
     setExemplo(lote);
     setCamposPre({ pesoTotal: String(lote.pesoTotal).replace('.', ','), pesoMetalMinimo: '', teor: '', kitco: '', desconto: '0', precoVendaOuro: '', lance: String(lote.minimo), custos: '0', tarifaPercentual: '6' });
     setResultado(null);
     setErro('');
+    setPesoMedido('');
+    setTeorMedido('');
+  }
+
+  function irParaRefino() {
+    try {
+      const medicao = prepararRefinoAposMedicao(camposPre, pesoMedido, teorMedido);
+      setCamposRefino((anterior) => ({ ...anterior, ...medicao, amostra: '', pesoPrata: '', precoPrata: '' }));
+      setResultado(null);
+      setErro('');
+      setModo('refino');
+    } catch (error) {
+      setErro(error.message);
+    }
   }
 
   function importarLote() {
@@ -137,6 +154,16 @@ export default function App() {
             </View>}
             <TouchableOpacity accessibilityRole="link" onPress={() => Linking.openURL(FONTES_2018.catalogo)}><Text style={styles.label}>Abrir catálogo oficial</Text></TouchableOpacity>
             <TouchableOpacity accessibilityRole="link" onPress={() => Linking.openURL(FONTES_2018.resultado)}><Text style={styles.label}>Abrir resultado oficial</Text></TouchableOpacity>
+          </View>}
+          {modo === 'pre' && <View style={[styles.card, { marginTop: 16 }]}>
+            <Text style={styles.titulo}>Depois de receber o lote</Text>
+            <Text style={styles.orientacao}>Separe e pese a liga de ouro sem pedras. Informe o teor testado ou confirmado. A hipótese usada antes do lance não será copiada como medição.</Text>
+            <Text style={styles.label}>Peso medido da liga de ouro sem pedras (g)</Text>
+            <TextInput accessibilityLabel="Peso medido da liga de ouro sem pedras" style={styles.input} keyboardType="decimal-pad" value={pesoMedido} onChangeText={setPesoMedido} placeholder="Ex.: 6,70" placeholderTextColor="#626b79" />
+            <Text style={styles.label}>Teor medido ou confirmado (milésimos)</Text>
+            <TextInput accessibilityLabel="Teor medido ou confirmado" style={styles.input} keyboardType="number-pad" value={teorMedido} onChangeText={setTeorMedido} placeholder="Ex.: 750" placeholderTextColor="#626b79" />
+            <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={irParaRefino}><Text style={styles.botaoTexto}>LEVAR MEDIÇÃO À ANÁLISE COM REFINO</Text></TouchableOpacity>
+            {erro ? <Text style={styles.erro}>{erro}</Text> : null}
           </View>}
           {modo === 'refino' && <View style={styles.card}>
             <Text style={styles.titulo}>Consultar lote da Caixa</Text>

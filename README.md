@@ -10,6 +10,8 @@ A tela **Pré-lance** contém três casos do catálogo oficial de Criciúma de 1
 
 O usuário informa uma hipótese mínima justificada de liga de ouro sem pedras, teor, preços, custos e tarifa. O app calcula o teto de lance para ROI de 15% incluindo 3% do ouro fino como custo estimado do refino. A tela informa que o resultado é **condicional à hipótese**, sem recomendação automática de compra. Sem limite inferior de metal defensável, o histórico de preços sozinho não permite um lance seguro. A tarifa de 6% vem **apenas do exemplo de 2018**; confirme a regra do leilão atual antes de usar outro lote. Esse cálculo pré-lance não altera a análise com refino existente nem comprova a precisão das hipóteses.
 
+Após receber um lote, informe **o peso medido da liga sem pedras** e **o teor testado ou confirmado** no cartão "Depois de receber o lote". O botão leva esses valores e os preços à análise com refino, incluindo a tarifa calculada nos outros custos. A hipótese mínima usada antes do lance nunca é copiada como se fosse uma medição. Antes de calcular o refino, informe ainda a amostra e a prata conforme o resultado real da separação; o app não armazena um histórico persistente de previsões e medições nesta versão.
+
 O aplicativo abre na **Análise com refino**, que fornece a decisão de compra. A **Simulação auxiliar** preserva a estimativa original, mas não exibe recomendação de compra porque não inclui a taxa da refinadora:
 
 ### Importar dados de um lote da Caixa

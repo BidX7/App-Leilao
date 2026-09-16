@@ -4,6 +4,12 @@ MVP em React Native/Expo para estimar a viabilidade da compra de lotes de ouro.
 
 ## Cálculos
 
+### Pré-lance com histórico oficial
+
+A tela **Pré-lance** contém três casos do catálogo oficial de Criciúma de 16/05/2018, cruzados pelo número do lote com o resultado de 17/05/2018. Fontes: [catálogo](https://servicebus2.caixa.gov.br/vitrinearquivos/pdf/011201841541020180516104338.pdf) e [resultados](https://servicebus2.caixa.gov.br/vitrinearquivos/pdf/011201841541020180517112715.pdf). Os resultados publicados eram provisórios até a confirmação do pagamento. Os exemplos preenchem peso total e lance mínimo, mostram lance vencedor e tarifa, mas **não preenchem peso do ouro, teor ou cotação**. O catálogo às vezes estima o peso das pedras, sem provar a massa da liga.
+
+O usuário informa uma hipótese mínima justificada de liga de ouro sem pedras, teor, preços, custos e tarifa. O app calcula o teto de lance para ROI de 15% incluindo 3% do ouro fino como custo estimado do refino. A tela informa que o resultado é **condicional à hipótese**, sem recomendação automática de compra. Sem limite inferior de metal defensável, o histórico de preços sozinho não permite um lance seguro. A tarifa de 6% vem **apenas do exemplo de 2018**; confirme a regra do leilão atual antes de usar outro lote. Esse cálculo pré-lance não altera a análise com refino existente nem comprova a precisão das hipóteses.
+
 O aplicativo abre na **Análise com refino**, que fornece a decisão de compra. A **Simulação auxiliar** preserva a estimativa original, mas não exibe recomendação de compra porque não inclui a taxa da refinadora:
 
 ### Importar dados de um lote da Caixa

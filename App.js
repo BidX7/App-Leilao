@@ -323,7 +323,7 @@ export default function App() {
               </>}
             </View>
           )}
-          <Text style={styles.aviso}>{modo === 'pre' ? 'Simulação da compra sem refino. Os casos de 2018 documentam peso total e preço de leilão; não documentam resultado do refino. A hipótese mínima de metal exige evidência independente.' : modo === 'refino'
+          <Text style={styles.aviso}>{modo === 'pre' ? 'Simulação da compra sem refino. O peso total anunciado pode incluir pedras e outros materiais. A hipótese mínima de metal exige evidência independente.' : modo === 'refino'
             ? 'Taxa percentual informada pelo usuário sobre o ouro fino, avaliada a Kitco menos desconto; prata cobrada pelo peso informado. Ouro devolvido integralmente após a amostra. Margem mínima de 15%. Confirme teor, pesagens, preços e cobrança com a refinadora.'
             : 'Estimativa antiga com recuperação de 98%, sem custo da refinadora. A decisão de compra exige a análise com refino.'}</Text>
           <Text style={styles.rodape}>App Leilão • MVP v0.1</Text>

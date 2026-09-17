@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - feat/vitrine-publica
     paths:
       - .github/workflows/android-apk.yml
       - App.js

@@ -10,9 +10,9 @@ export const LER_LEILOES_PUBLICOS = `(() => {
           nome: colunas?.length >= 7 ? 'Em exposição · ' + colunas[3].innerText.trim() + ' · ' + colunas[4].innerText.trim() : '' }; })
       .filter(item => /Em exposição/i.test(item.texto))
       .map(item => ({ url: item.url, descricao: item.nome || item.texto.replace(/\\s+/g, ' ').trim() }));
-    if (leiloes.length || ++tentativas >= 12) {
+    if (leiloes.length || ++tentativas >= 60) {
       window.ReactNativeWebView.postMessage(JSON.stringify({ tipo: 'leiloes', url: location.href, leiloes }));
-    } else setTimeout(consultar, 750);
+    } else setTimeout(consultar, 1500);
   };
   consultar();
 })(); true;`;
@@ -28,7 +28,7 @@ export const ROLAR_PARA_LOTES = `(() => {
 })(); true;`;
 
 export function extrairLeiloesPublicos(mensagem) {
-  if (mensagem?.url !== URL_VITRINE || !Array.isArray(mensagem.leiloes))
+  if (!paginaCronogramaPublico(mensagem?.url) || !Array.isArray(mensagem.leiloes))
     throw new Error('Não foi possível verificar o cronograma oficial.');
   return mensagem.leiloes.filter(({ url, descricao }) => {
     try {
@@ -38,6 +38,14 @@ export function extrairLeiloesPublicos(mensagem) {
         pagina.searchParams.has('leilao') && /Em exposição/i.test(descricao);
     } catch { return false; }
   }).slice(0, 30);
+}
+
+export function paginaCronogramaPublico(url) {
+  try {
+    const pagina = new URL(url);
+    return pagina.protocol === 'https:' && pagina.hostname === 'vitrinedejoias.caixa.gov.br' &&
+      pagina.pathname.toLowerCase() === '/paginas/default.aspx';
+  } catch { return false; }
 }
 
 // Executado somente na página pública da Vitrine aberta pelo próprio usuário.

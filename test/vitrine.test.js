@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { extrairLotePublico } from '../src/caixa.js';
-import { extrairLeiloesPublicos, LER_LEILOES_PUBLICOS, urlPublica } from '../src/vitrine.js';
+import { extrairLeiloesPublicos, LER_LEILOES_PUBLICOS, paginaCronogramaPublico, urlPublica } from '../src/vitrine.js';
 
 test('lê links públicos do cronograma renderizado e envia nomes curtos ao aplicativo', () => {
   const mensagens = [];
@@ -27,6 +27,27 @@ test('lista somente leilões públicos em exposição no cronograma oficial', ()
   assert.equal(dados.length, 1);
   assert.match(dados[0].descricao, /CAMPINA GRANDE/);
   assert.throws(() => extrairLeiloesPublicos({ url: 'https://evil.test', leiloes: [] }), /cronograma oficial/);
+  assert.equal(paginaCronogramaPublico('https://vitrinedejoias.caixa.gov.br/Paginas/default.aspx?origem=menu'), true);
+});
+
+test('espera o cronograma carregar depois de nove segundos', () => {
+  let tentativas = 0;
+  const chamadas = [];
+  const mensagens = [];
+  const linha = { innerText: 'PB CAMPINA GRANDE Em exposição', querySelectorAll: () =>
+    ['21/09', '16/09', '20/10', 'PB', 'CAMPINA GRANDE', '41', 'Em exposição'].map(innerText => ({ innerText })) };
+  vm.runInNewContext(LER_LEILOES_PUBLICOS, {
+    document: { querySelectorAll: () => ++tentativas >= 15 ? [{
+      href: 'https://vitrinedejoias.caixa.gov.br/Paginas/vitrine-leilao.aspx?leilao=227%2F2026',
+      closest: () => linha
+    }] : [] },
+    location: { href: 'https://vitrinedejoias.caixa.gov.br/Paginas/default.aspx' },
+    setTimeout: (callback) => { chamadas.push(callback); },
+    window: { ReactNativeWebView: { postMessage: (mensagem) => mensagens.push(JSON.parse(mensagem)) } }
+  });
+  while (chamadas.length) chamadas.shift()();
+  assert.equal(tentativas, 15);
+  assert.equal(extrairLeiloesPublicos(mensagens[0]).length, 1);
 });
 
 test('importa apenas dados publicados no modal de um lote atual, sem inferir ouro ou teor', () => {

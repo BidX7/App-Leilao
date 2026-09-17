@@ -11,8 +11,6 @@ const CAMPOS_PRE = [
   ['pesoTotal', 'Peso total anunciado (g)'],
   ['pesoMetalMinimo', 'Hipótese mínima de liga de ouro, sem pedras (g)'],
   ['teor', 'Teor declarado ou hipótese (milésimos)'],
-  ['kitco', 'Ouro fino Kitco (R$/g)'],
-  ['desconto', 'Desconto da refinadora (R$/g)'],
   ['precoVendaOuro', 'Preço de venda do ouro fino (R$/g)'],
   ['lance', 'Lance que pretende oferecer (R$)'],
   ['custos', 'Outros custos (R$)'],
@@ -33,6 +31,7 @@ const CAMPOS_REFINO = [
   ['teor', 'Teor estimado do ouro (milésimos)', 'number-pad'],
   ['kitco', 'Kitco ouro por grama (R$)', 'decimal-pad'],
   ['desconto', 'Desconto da refinadora por grama (R$)', 'decimal-pad'],
+  ['taxaRefinoPercentual', 'Taxa de refino do ouro fino (%)', 'decimal-pad'],
   ['pesoPrata', 'Prata fina estimada para taxa (g)', 'decimal-pad'],
   ['precoPrata', 'Preço da prata usado na taxa (R$/g)', 'decimal-pad'],
   ['precoVendaOuro', 'Preço de venda do ouro fino (R$/g)', 'decimal-pad'],
@@ -43,20 +42,20 @@ const CAMPOS_REFINO = [
 export default function App() {
   const [modo, setModo] = useState('refino');
   const [campos, setCampos] = useState({ peso: '10', teor: '750', cotacao: '650', lance: '3500', custos: '200' });
-  const [camposRefino, setCamposRefino] = useState({ peso: '', amostra: '', teor: '', kitco: '', desconto: '', pesoPrata: '', precoPrata: '', precoVendaOuro: '', lance: '', custos: '0' });
+  const [camposRefino, setCamposRefino] = useState({ peso: '', amostra: '', teor: '', kitco: '', desconto: '', taxaRefinoPercentual: '', pesoPrata: '', precoPrata: '', precoVendaOuro: '', lance: '', custos: '0' });
   const [resultado, setResultado] = useState(null);
   const [erro, setErro] = useState('');
   const [numeroLote, setNumeroLote] = useState('');
   const [textoLote, setTextoLote] = useState('');
   const [loteCaixa, setLoteCaixa] = useState(null);
   const [exemplo, setExemplo] = useState(null);
-  const [camposPre, setCamposPre] = useState({ pesoTotal: '', pesoMetalMinimo: '', teor: '', kitco: '', desconto: '0', precoVendaOuro: '', lance: '', custos: '0', tarifaPercentual: '6' });
+  const [camposPre, setCamposPre] = useState({ pesoTotal: '', pesoMetalMinimo: '', teor: '', precoVendaOuro: '', lance: '', custos: '0', tarifaPercentual: '6' });
   const [pesoMedido, setPesoMedido] = useState('');
   const [teorMedido, setTeorMedido] = useState('');
 
   function usarExemplo(lote) {
     setExemplo(lote);
-    setCamposPre({ pesoTotal: String(lote.pesoTotal).replace('.', ','), pesoMetalMinimo: '', teor: '', kitco: '', desconto: '0', precoVendaOuro: '', lance: String(lote.minimo), custos: '0', tarifaPercentual: '6' });
+    setCamposPre({ pesoTotal: String(lote.pesoTotal).replace('.', ','), pesoMetalMinimo: '', teor: '', precoVendaOuro: '', lance: String(lote.minimo), custos: '0', tarifaPercentual: '6' });
     setResultado(null);
     setErro('');
     setPesoMedido('');
@@ -66,7 +65,7 @@ export default function App() {
   function irParaRefino() {
     try {
       const medicao = prepararRefinoAposMedicao(camposPre, pesoMedido, teorMedido);
-      setCamposRefino((anterior) => ({ ...anterior, ...medicao, amostra: '', pesoPrata: '', precoPrata: '' }));
+      setCamposRefino((anterior) => ({ ...anterior, ...medicao, amostra: '', kitco: '', desconto: '', taxaRefinoPercentual: '', pesoPrata: '', precoPrata: '' }));
       setResultado(null);
       setErro('');
       setModo('refino');
@@ -186,7 +185,7 @@ export default function App() {
           <View style={styles.card}>
             <Text style={styles.titulo}>Analisar lote</Text>
             <Text style={styles.orientacao}>{modo === 'pre'
-              ? 'Informe uma hipótese mínima justificável de liga sem pedras e o teor. Sem isso, nenhum lance seguro pode ser calculado. Cotações históricas de 2018 não são cotações atuais.'
+              ? 'Simule somente a compra: hipótese de liga sem pedras, teor, preço de venda, lance, tarifa e outros custos. O refino é uma negociação separada, após receber o lote.'
               : modo === 'refino'
               ? 'Simule a taxa da refinadora antes de comprar. Informe a liga de ouro sem pedras e a prata separadamente. Digite 0 para amostra ou prata somente se tiver confirmado que não existem.'
               : 'Simulação auxiliar sem custo de refinadora. Não use este resultado para decidir uma compra.'}</Text>
@@ -206,17 +205,17 @@ export default function App() {
               {modo === 'pre' ? <>
                 <Text style={[styles.decisao, { color: '#f4c95d' }]}>CENÁRIO CONDICIONAL</Text>
                 <Text style={styles.info}>Ouro fino na hipótese mínima: {resultado.ouroFino.toFixed(2)} g</Text>
-                <Text style={styles.info}>Refino estimado (3%): {formatarReal(resultado.refino)}</Text>
+                <Text style={styles.info}>Valor estimado do ouro: {formatarReal(resultado.receita)}</Text>
                 <Text style={styles.info}>Tarifa estimada: {formatarReal(resultado.tarifa)}</Text>
                 <Text style={styles.info}>Lance máximo para ROI de 15%: {formatarReal(resultado.lanceMaximo)}</Text>
-                <Text style={styles.info}>Lucro nesse cenário: {formatarReal(resultado.lucro)}</Text>
+                <Text style={styles.info}>Resultado da negociação, sem refino: {formatarReal(resultado.lucro)}</Text>
                 <Text style={styles.orientacao}>{resultado.viavelNaHipotese ? 'O lance cabe apenas SE a hipótese mínima de metal e teor for verdadeira. Não é recomendação de compra.' : 'O lance ultrapassa o teto deste cenário.'}</Text>
               </> : <>
               <Text style={[styles.decisao, { color: modo === 'refino' ? cor : '#f4c95d' }]}>{modo === 'refino' ? resultado.decisao : 'SIMULAÇÃO AUXILIAR'}</Text>
               <Text style={styles.info}>Ouro fino: {resultado.ouroFino.toFixed(2)} g</Text>
               {modo === 'refino' ? (
                 <>
-                  <Text style={styles.info}>Ouro cobrado no refino (3%): {resultado.gramasTaxaOuro.toFixed(2)} g</Text>
+                  <Text style={styles.info}>Ouro cobrado no refino ({resultado.taxaRefinoPercentual}%): {resultado.gramasTaxaOuro.toFixed(2)} g</Text>
                   <Text style={styles.info}>Taxa do ouro: {formatarReal(resultado.custoRefinoOuro)}</Text>
                   <Text style={styles.info}>Taxa da prata: {formatarReal(resultado.custoRefinoPrata)}</Text>
                   <Text style={styles.info}>Custo total do refino: {formatarReal(resultado.custoRefino)}</Text>
@@ -235,8 +234,8 @@ export default function App() {
               </>}
             </View>
           )}
-          <Text style={styles.aviso}>{modo === 'pre' ? 'Os casos de 2018 documentam peso total e preço de leilão; não documentam resultado do refino. A hipótese mínima de metal exige evidência independente.' : modo === 'refino'
-            ? 'Conforme simulação 3M: taxa de 3% do ouro fino a Kitco menos desconto; prata cobrada pelo peso informado. Ouro devolvido integralmente após a amostra. Margem mínima de 15%. Confirme teor, pesagens, preços e cobrança com a refinadora antes de comprar.'
+          <Text style={styles.aviso}>{modo === 'pre' ? 'Simulação da compra sem refino. Os casos de 2018 documentam peso total e preço de leilão; não documentam resultado do refino. A hipótese mínima de metal exige evidência independente.' : modo === 'refino'
+            ? 'Taxa percentual informada pelo usuário sobre o ouro fino, avaliada a Kitco menos desconto; prata cobrada pelo peso informado. Ouro devolvido integralmente após a amostra. Margem mínima de 15%. Confirme teor, pesagens, preços e cobrança com a refinadora.'
             : 'Estimativa antiga com recuperação de 98%, sem custo da refinadora. A decisão de compra exige a análise com refino.'}</Text>
           <Text style={styles.rodape}>App Leilão • MVP v0.1</Text>
         </ScrollView>

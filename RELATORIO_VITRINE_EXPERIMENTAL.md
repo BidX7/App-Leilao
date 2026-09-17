@@ -16,7 +16,7 @@ A Vitrine oficial exibiu em 17/09/2026 lotes em exposição no [leilão 227/2026
 
 ## Verificação
 
-`npm test`: 23 testes passaram. `npx expo export --platform android`: bundle Android gerado. Os testes verificam a rejeição de páginas de origem diferente, peso e lance ausentes, e que nenhum teor ou peso de ouro é inventado na importação. A compilação da APK e a interação do WebView em um Android físico precisam ser verificadas na execução do GitHub Actions e no aparelho, respectivamente.
+`npm test`: 23 testes passaram. `npx expo export --platform android`: bundle Android gerado. O [GitHub Actions, execução 35257762332](https://github.com/BidX7/App-Leilao/actions/runs/35257762332), compilou e publicou o artefato `App-Leilao-Vitrine-experimental` (ZIP com APK, cerca de 27,6 MB). Os testes verificam a rejeição de páginas de origem diferente, peso e lance ausentes, e que nenhum teor ou peso de ouro é inventado na importação. A interação da Vitrine dentro do WebView e a instalação desta versão ainda precisam ser verificadas em um Android físico.
 
 ## Limites e próximos passos
 

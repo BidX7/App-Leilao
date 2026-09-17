@@ -20,3 +20,16 @@ export function extrairDadosLote(texto, numeroEsperado) {
   const descricao = conteudo.match(/Descrição\s*:\s*([^\n]+?)(?=\s*Valor do lance mínimo|\n|$)/i)?.[1]?.trim() || '';
   return { numero: esperado, pesoTotal, lanceMinimo, descricao };
 }
+
+export function extrairLotePublico(mensagem) {
+  const { url, numero, descricao, lanceMinimo, fotos } = mensagem || {};
+  const origem = new URL(url);
+  if (origem.protocol !== 'https:' || origem.hostname !== 'vitrinedejoias.caixa.gov.br' ||
+      !/^\/Paginas\/vitrine-leilao\.aspx$/i.test(origem.pathname)) {
+    throw new Error('A importação só aceita lotes da Vitrine oficial da Caixa.');
+  }
+  const dados = extrairDadosLote(`Descrição: ${descricao}\nValor do lance mínimo: ${lanceMinimo}\nNúmero do lote: ${numero}`, numero);
+  return { ...dados, origem: origem.href, fotos: (Array.isArray(fotos) ? fotos : [])
+    .filter((foto) => { try { const u = new URL(foto); return u.protocol === 'https:' && u.hostname.endsWith('.caixa.gov.br') && !/indisponivel\.png$/i.test(u.pathname); } catch { return false; } })
+    .slice(0, 2) };
+}

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Image, KeyboardAvoidingView, Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { analisarLote, analisarRefino3M, formatarReal, parseNumero } from './src/auction';
-import { extrairDadosLote } from './src/caixa';
-import { LOTES_2018, FONTES_2018 } from './src/historico';
+import { extrairDadosLote, extrairLotePublico } from './src/caixa';
+import { LER_LOTE_VISIVEL, URL_VITRINE, urlPublica } from './src/vitrine';
+import { WebView } from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { analisarPreLance } from './src/prelance';
 import { prepararRefinoAposMedicao } from './src/medicao';
 
@@ -48,18 +50,61 @@ export default function App() {
   const [numeroLote, setNumeroLote] = useState('');
   const [textoLote, setTextoLote] = useState('');
   const [loteCaixa, setLoteCaixa] = useState(null);
-  const [exemplo, setExemplo] = useState(null);
+  const [vitrineAberta, setVitrineAberta] = useState(false);
+  const [vitrineUrl, setVitrineUrl] = useState(URL_VITRINE);
+  const [lotePendente, setLotePendente] = useState(null);
+  const [loteManual, setLoteManual] = useState({ numero: '', descricao: '', pesoTotal: '', lanceMinimo: '' });
+  const [salvos, setSalvos] = useState([]);
+  const navegador = useRef(null);
   const [camposPre, setCamposPre] = useState({ pesoTotal: '', pesoMetalMinimo: '', teor: '', precoVendaOuro: '', lance: '', custos: '0', tarifaPercentual: '6' });
   const [pesoMedido, setPesoMedido] = useState('');
   const [teorMedido, setTeorMedido] = useState('');
 
-  function usarExemplo(lote) {
-    setExemplo(lote);
-    setCamposPre({ pesoTotal: String(lote.pesoTotal).replace('.', ','), pesoMetalMinimo: '', teor: '', precoVendaOuro: '', lance: String(lote.minimo), custos: '0', tarifaPercentual: '6' });
+  async function abrirManuais() {
+    try {
+      const dados = JSON.parse(await AsyncStorage.getItem('lotes-manuais-v1') || '[]');
+      setSalvos(Array.isArray(dados) ? dados : []);
+    } catch { setSalvos([]); }
+  }
+
+  function selecionarLote(dados) {
+    setLotePendente(dados);
+    setVitrineAberta(false);
     setResultado(null);
     setErro('');
-    setPesoMedido('');
-    setTeorMedido('');
+  }
+
+  function confirmarLote() {
+    if (!lotePendente) return;
+    setCamposPre((anterior) => ({ ...anterior, pesoTotal: String(lotePendente.pesoTotal).replace('.', ','),
+      pesoMetalMinimo: '', teor: '', lance: String(lotePendente.lanceMinimo).replace('.', ',') }));
+    setNumeroLote(lotePendente.numero);
+    setResultado(null);
+    setErro('');
+    setLotePendente(null);
+  }
+
+  function importarDaPagina(evento) {
+    try {
+      selecionarLote(extrairLotePublico(JSON.parse(evento.nativeEvent.data)));
+    } catch (error) { setErro(error.message || 'Abra primeiro o detalhe de um lote na Vitrine.'); }
+  }
+
+  async function salvarManual() {
+    try {
+      if (!loteManual.descricao.trim() || !loteManual.pesoTotal.trim()) throw new Error('Informe a descrição e o peso total.');
+      const pesoNaDescricao = loteManual.descricao.match(/PESO\s+LOTE\s*:\s*(\d+(?:[.,]\d+)?)\s*G\b/i)?.[1];
+      if (pesoNaDescricao && Number(pesoNaDescricao.replace(',', '.')) !== Number(loteManual.pesoTotal.replace(',', '.'))) {
+        throw new Error('O peso informado difere do peso escrito na descrição. Confira o lote.');
+      }
+      const descricao = loteManual.descricao.replace(/PESO\s+LOTE\s*:\s*\d+(?:[.,]\d+)?\s*G\b/ig, '').trim();
+      const texto = `Descrição: ${descricao} PESO LOTE: ${loteManual.pesoTotal}G\nValor do lance mínimo: R$${loteManual.lanceMinimo}\nNúmero do lote: ${loteManual.numero}`;
+      const dados = extrairDadosLote(texto, loteManual.numero);
+      const atualizados = [dados, ...salvos.filter((lote) => lote.numero !== dados.numero)].slice(0, 50);
+      await AsyncStorage.setItem('lotes-manuais-v1', JSON.stringify(atualizados));
+      setSalvos(atualizados);
+      selecionarLote({ ...dados, tipo: 'manual' });
+    } catch (error) { setErro(error.message); }
   }
 
   function irParaRefino() {
@@ -86,6 +131,12 @@ export default function App() {
       setResultado(null);
       setErro(error.message);
     }
+  }
+
+  function importarTextoPreLance() {
+    try {
+      selecionarLote({ ...extrairDadosLote(textoLote, numeroLote), tipo: 'texto' });
+    } catch (error) { setErro(error.message); }
   }
 
   function atualizar(nome, valor) {
@@ -143,16 +194,54 @@ export default function App() {
             </TouchableOpacity>
           </View>
           {modo === 'pre' && <View style={styles.card}>
-            <Text style={styles.titulo}>Casos oficiais de 2018</Text>
-            <Text style={styles.orientacao}>Catálogo e resultados da Caixa, Criciúma, 16/05/2018. Toque para carregar os dados publicados. O preço antigo não revela o peso nem o teor do ouro.</Text>
-            {LOTES_2018.map((lote) => <TouchableOpacity key={lote.numero} accessibilityRole="button" style={styles.botao} onPress={() => usarExemplo(lote)}><Text style={styles.botaoTexto}>{lote.numero} · {lote.pesoTotal.toFixed(2)} g</Text></TouchableOpacity>)}
-            {exemplo && <View>
-              <Text style={styles.info}>{exemplo.descricao}</Text>
-              <Text style={styles.info}>Mínimo: {formatarReal(exemplo.minimo)} · Lance vencedor publicado: {formatarReal(exemplo.lanceVencedor)} · Tarifa: {formatarReal(exemplo.tarifa)}</Text>
-              <Text style={styles.orientacao}>Resultado provisório até confirmação do pagamento. Peso de pedra informado: {exemplo.pedrasInformadas === null ? 'não consta' : `${exemplo.pedrasInformadas.toFixed(2)} g`}. Isso não prova o teor ou o peso da liga.</Text>
+            <Text style={styles.titulo}>Lotes públicos da Caixa</Text>
+            <Text style={styles.orientacao}>Consulte lotes em exposição no site oficial, sem cadastro. Escolha um leilão e toque no lote para ver foto, peso total e lance mínimo.</Text>
+            <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={() => { setVitrineUrl(URL_VITRINE); setVitrineAberta(true); setErro(''); }}><Text style={styles.botaoTexto}>ESCOLHER LOTE PÚBLICO</Text></TouchableOpacity>
+            {vitrineAberta && <View>
+              <Text style={styles.info}>Na Vitrine: escolha mês, leilão e abra o detalhe do lote. Depois toque no botão abaixo.</Text>
+              <View style={styles.navegador}>
+                <WebView ref={navegador} source={{ uri: vitrineUrl }} javaScriptEnabled
+                  originWhitelist={['https://vitrinedejoias.caixa.gov.br']}
+                  onShouldStartLoadWithRequest={({ url }) => urlPublica(url)}
+                  onOpenWindow={(evento) => { const url = evento.nativeEvent.targetUrl; if (urlPublica(url)) setVitrineUrl(url); }}
+                  onMessage={importarDaPagina}
+                  onError={() => setErro('A Vitrine não carregou. Tente novamente mais tarde ou cadastre o lote manualmente.')} />
+              </View>
+              <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={() => navegador.current?.injectJavaScript(LER_LOTE_VISIVEL)}><Text style={styles.botaoTexto}>IMPORTAR LOTE ABERTO</Text></TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" onPress={() => setVitrineAberta(false)}><Text style={styles.label}>Fechar Vitrine</Text></TouchableOpacity>
             </View>}
-            <TouchableOpacity accessibilityRole="link" onPress={() => Linking.openURL(FONTES_2018.catalogo)}><Text style={styles.label}>Abrir catálogo oficial</Text></TouchableOpacity>
-            <TouchableOpacity accessibilityRole="link" onPress={() => Linking.openURL(FONTES_2018.resultado)}><Text style={styles.label}>Abrir resultado oficial</Text></TouchableOpacity>
+          </View>}
+          {modo === 'pre' && <View style={[styles.card, { marginTop: 16 }]}>
+            <Text style={styles.titulo}>Importar texto do anúncio</Text>
+            <Text style={styles.orientacao}>Se a Vitrine não carregar no app, copie o texto publicado e confira os dados antes do pré-lance.</Text>
+            <Text style={styles.label}>Número completo do lote</Text>
+            <TextInput accessibilityLabel="Número do lote para pré-lance" style={styles.input} value={numeroLote} onChangeText={setNumeroLote} placeholder="0041.000001-9" placeholderTextColor="#626b79" />
+            <Text style={styles.label}>Descrição, peso total, lance mínimo e número</Text>
+            <TextInput accessibilityLabel="Texto do lote para pré-lance" style={[styles.input, { minHeight: 100 }]} multiline value={textoLote} onChangeText={setTextoLote} />
+            <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={importarTextoPreLance}><Text style={styles.botaoTexto}>CONFERIR TEXTO DO LOTE</Text></TouchableOpacity>
+          </View>}
+          {modo === 'pre' && <View style={[styles.card, { marginTop: 16 }]}>
+            <Text style={styles.titulo}>Meu lote · cadastro manual</Text>
+            <Text style={styles.orientacao}>Salvo somente neste aparelho. Inclua a descrição publicada ou recebida; não inclua dados pessoais de terceiros.</Text>
+            {([['numero', 'Número do lote'], ['descricao', 'Descrição, incluindo PESO LOTE: 10,00G'], ['pesoTotal', 'Peso total anunciado (g)'], ['lanceMinimo', 'Lance mínimo (R$)']]).map(([chave, rotulo]) => <View key={chave}>
+              <Text style={styles.label}>{rotulo}</Text>
+              <TextInput accessibilityLabel={rotulo} style={styles.input} multiline={chave === 'descricao'} value={loteManual[chave]}
+                onChangeText={(valor) => setLoteManual((anterior) => ({ ...anterior, [chave]: valor }))}
+                keyboardType={chave === 'pesoTotal' || chave === 'lanceMinimo' ? 'decimal-pad' : 'default'} />
+            </View>)}
+            <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={salvarManual}><Text style={styles.botaoTexto}>SALVAR E ANALISAR LOTE</Text></TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" onPress={abrirManuais}><Text style={styles.label}>Ver lotes salvos neste aparelho</Text></TouchableOpacity>
+            {salvos.map((lote) => <TouchableOpacity key={lote.numero} accessibilityRole="button" onPress={() => selecionarLote({ ...lote, tipo: 'manual' })}><Text style={styles.info}>{lote.numero} · {lote.pesoTotal.toFixed(2)} g · {formatarReal(lote.lanceMinimo)}</Text></TouchableOpacity>)}
+          </View>}
+          {modo === 'pre' && lotePendente && <View style={[styles.card, { marginTop: 16 }]}>
+            <Text style={styles.titulo}>Conferir antes de importar</Text>
+            <Text style={styles.info}>Lote: {lotePendente.numero} · {lotePendente.tipo === 'manual' ? 'inserido por você' : lotePendente.tipo === 'texto' ? 'texto colado por você' : 'Vitrine pública da Caixa'}</Text>
+            <Text style={styles.info}>Peso TOTAL: {lotePendente.pesoTotal.toFixed(2)} g · mínimo: {formatarReal(lotePendente.lanceMinimo)}</Text>
+            {lotePendente.fotos?.map((foto) => <Image key={foto} source={{ uri: foto }} style={{ height: 180, marginBottom: 8, borderRadius: 8 }} resizeMode="contain" />)}
+            <Text style={styles.info}>{lotePendente.descricao}</Text>
+            {lotePendente.origem && <TouchableOpacity accessibilityRole="link" onPress={() => Linking.openURL(lotePendente.origem)}><Text style={styles.label}>Conferir na fonte oficial</Text></TouchableOpacity>}
+            <Text style={styles.orientacao}>O peso total pode incluir pedras, prata e outros materiais. Confirme os dados; o peso de ouro e o teor permanecem vazios.</Text>
+            <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={confirmarLote}><Text style={styles.botaoTexto}>CONFIRMAR E PREENCHER PRÉ-LANCE</Text></TouchableOpacity>
           </View>}
           {modo === 'pre' && <View style={[styles.card, { marginTop: 16 }]}>
             <Text style={styles.titulo}>Depois de receber o lote</Text>
@@ -253,6 +342,7 @@ const styles = StyleSheet.create({
   modo: { flex: 1, backgroundColor: '#151922', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#303746' },
   modoAtivo: { borderColor: '#f4c95d' },
   modoTexto: { color: '#fff', fontWeight: '700', textAlign: 'center' },
+  navegador: { height: 440, marginTop: 14, borderRadius: 12, overflow: 'hidden' },
   card: { backgroundColor: '#151922', borderRadius: 18, padding: 18 },
   titulo: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 12 },
   orientacao: { color: '#f4c95d', fontSize: 13, lineHeight: 18, marginBottom: 4 },

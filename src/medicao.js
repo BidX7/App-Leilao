@@ -15,7 +15,7 @@ export function prepararRefinoAposMedicao(pre, pesoMedido, teorMedido) {
   if (![lance, custos, tarifaPercentual].every(Number.isFinite) || lance < 0 || custos < 0 || tarifaPercentual < 0 || tarifaPercentual > 100) {
     throw new Error('Confira lance, custos e tarifa antes de transferir ao refino.');
   }
-  return { peso: String(peso), teor: String(teor), kitco: pre.kitco, desconto: pre.desconto,
+  return { peso: String(peso), teor: String(teor),
     precoVendaOuro: pre.precoVendaOuro, lance: pre.lance,
     custos: String(Math.round((custos + lance * tarifaPercentual / 100) * 100) / 100) };
 }

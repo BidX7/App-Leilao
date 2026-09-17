@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { analisarLote, analisarRefino3M, formatarReal, parseNumero } from '../src/auction.js';
 
 const simulacao3M = {
-  peso: '235', amostra: '1,1', teor: '750', kitco: '742,60', desconto: '100',
+  peso: '235', amostra: '1,1', teor: '750', kitco: '742,60', desconto: '100', taxaRefinoPercentual: '3',
   pesoPrata: '10', precoPrata: '12,68', precoVendaOuro: '680', lance: '100000', custos: '0'
 };
 
@@ -77,10 +77,22 @@ test('refino classifica cuidado e não comprar ao variar somente o preço de com
 });
 
 test('refino exige os dados financeiros e rejeita amostra maior que o peso', () => {
+  assert.throws(() => analisarRefino3M({ ...simulacao3M, taxaRefinoPercentual: '' }), /Preencha/);
+  assert.throws(() => analisarRefino3M({ ...simulacao3M, taxaRefinoPercentual: '101' }), /taxa de refino/);
   assert.throws(() => analisarRefino3M({ ...simulacao3M, precoVendaOuro: '' }), /Preencha/);
   assert.throws(() => analisarRefino3M({ ...simulacao3M, amostra: '235' }), /amostra/);
   assert.throws(() => analisarRefino3M({ ...simulacao3M, kitco: '50' }), /Kitco/);
   assert.throws(() => analisarRefino3M({ ...simulacao3M, precoPrata: '0' }), /prata/);
+});
+
+test('taxa de refino informada como porcentagem modifica gramas e reais', () => {
+  const semTaxa = analisarRefino3M({ ...simulacao3M, taxaRefinoPercentual: '0', pesoPrata: '0' });
+  const taxaCinco = analisarRefino3M({ ...simulacao3M, taxaRefinoPercentual: '5', pesoPrata: '0' });
+  assert.equal(semTaxa.gramasTaxaOuro, 0);
+  assert.equal(semTaxa.custoRefinoOuro, 0);
+  assert.equal(taxaCinco.gramasTaxaOuro, 8.77);
+  assert.ok(Math.abs(taxaCinco.custoRefinoOuro - 5635.6) < 0.001);
+  assert.ok(Math.abs(semTaxa.lucro - taxaCinco.lucro - taxaCinco.custoRefinoOuro) < 0.001);
 });
 
 test('refino desconta a taxa ao calcular o lance máximo para 15% de margem', () => {

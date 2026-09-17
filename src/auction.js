@@ -1,6 +1,5 @@
 const MARGEM_MINIMA = 0.15;
 const RECUPERACAO_PADRAO = 0.98;
-const TAXA_OURO_REFINO = 0.03;
 const TAXA_PRATA_REFINO = 1;
 
 function arredondarCentavos(valor) {
@@ -61,18 +60,20 @@ export function analisarRefino3M(campos) {
   const teor = parseNumero(campos.teor);
   const kitco = parseNumero(campos.kitco);
   const desconto = parseNumero(campos.desconto);
+  const taxaRefinoPercentual = parseNumero(campos.taxaRefinoPercentual);
   const pesoPrata = parseNumero(campos.pesoPrata);
   const precoPrata = parseNumero(campos.precoPrata);
   const precoVendaOuro = parseNumero(campos.precoVendaOuro);
   const lance = parseNumero(campos.lance);
   const custos = parseNumero(campos.custos);
 
-  if (![peso, amostra, teor, kitco, desconto, pesoPrata, precoPrata, precoVendaOuro, lance, custos].every(Number.isFinite)) {
+  if (![peso, amostra, teor, kitco, desconto, taxaRefinoPercentual, pesoPrata, precoPrata, precoVendaOuro, lance, custos].every(Number.isFinite)) {
     throw new Error('Preencha todos os campos com números válidos; use 0 quando não houver prata ou outros custos.');
   }
   if (peso <= 0 || amostra < 0 || amostra >= peso) throw new Error('A amostra deve ser menor que o peso e não pode ser negativa.');
   if (teor <= 0 || teor > 1000) throw new Error('O teor deve estar entre 1 e 1000.');
   if (kitco <= 0 || desconto < 0 || desconto >= kitco) throw new Error('A cotação Kitco deve superar o desconto da refinadora.');
+  if (taxaRefinoPercentual < 0 || taxaRefinoPercentual > 100) throw new Error('A taxa de refino deve estar entre 0% e 100%.');
   if (pesoPrata < 0 || precoPrata < 0 || precoVendaOuro <= 0 || lance < 0 || custos < 0) {
     throw new Error('Prata, preços, lance e custos não podem ser negativos; a venda do ouro deve ser maior que zero.');
   }
@@ -80,7 +81,7 @@ export function analisarRefino3M(campos) {
 
   const pesoAposAmostra = peso - amostra;
   const ouroFino = arredondarCentavos(pesoAposAmostra * teor / 1000);
-  const gramasTaxaOuro = arredondarCentavos(ouroFino * TAXA_OURO_REFINO);
+  const gramasTaxaOuro = arredondarCentavos(ouroFino * taxaRefinoPercentual / 100);
   const precoTaxaOuro = kitco - desconto;
   const custoRefinoOuro = arredondarCentavos(gramasTaxaOuro * precoTaxaOuro);
   const custoRefinoPrata = arredondarCentavos(pesoPrata * precoPrata * TAXA_PRATA_REFINO);
@@ -98,7 +99,7 @@ export function analisarRefino3M(campos) {
   if (lucro > 0 && roi !== null && roi + 1e-9 >= MARGEM_MINIMA * 100) decisao = 'COMPRAR';
   else if (lucro > 0) decisao = 'CUIDADO';
 
-  return { pesoAposAmostra, ouroFino, gramasTaxaOuro, precoTaxaOuro, custoRefinoOuro, custoRefinoPrata,
+  return { pesoAposAmostra, ouroFino, taxaRefinoPercentual, gramasTaxaOuro, precoTaxaOuro, custoRefinoOuro, custoRefinoPrata,
     custoRefino, valorVendaOuro, custoTotal, lucro, roi, lanceMax, decisao };
 }
 

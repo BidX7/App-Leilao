@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Linking, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { analisarLote, analisarRefino3M, formatarReal, parseNumero } from './src/auction';
 import { extrairDadosLote, extrairLotePublico } from './src/caixa';
@@ -214,24 +214,11 @@ export default function App() {
             }}><Text style={styles.botaoTexto}>ESCOLHER LOTE PÚBLICO</Text></TouchableOpacity>
             {vitrineAberta && <View>
               <Text style={styles.info}>Toque num leilão em exposição abaixo. Depois abra um lote na Vitrine e toque em importar.</Text>
-              {leiloesPublicos.map((leilao) => <TouchableOpacity key={leilao.url} accessibilityRole="button" onPress={() => { setVitrineUrl(leilao.url); setErro(''); }}><Text style={styles.label}>{leilao.descricao}</Text></TouchableOpacity>)}
+              {leiloesPublicos.map((leilao) => <TouchableOpacity key={leilao.url} accessibilityRole="button" onPress={() => { setVitrineUrl(leilao.url); setVitrineAberta(true); setErro(''); }}><Text style={styles.label}>{leilao.descricao}</Text></TouchableOpacity>)}
               {!leiloesPublicos.length && <Text style={styles.orientacao}>{consultandoLeiloes
                 ? 'Consultando leilões em exposição na Caixa. A página pode demorar; toque novamente em ESCOLHER LOTE PÚBLICO para atualizar.'
                 : 'Nenhum leilão em exposição apareceu na consulta. Confira o cronograma na janela ou use o cadastro manual.'}</Text>}
-              <View style={styles.navegador}>
-                <WebView ref={navegador} source={{ uri: vitrineUrl }} javaScriptEnabled
-                  originWhitelist={['https://vitrinedejoias.caixa.gov.br']}
-                  onShouldStartLoadWithRequest={({ url }) => urlPublica(url)}
-                  onOpenWindow={(evento) => { const url = evento.nativeEvent.targetUrl; if (urlPublica(url)) setVitrineUrl(url); }}
-                  onLoadEnd={({ nativeEvent }) => {
-                    if (paginaCronogramaPublico(nativeEvent.url)) navegador.current?.injectJavaScript(LER_LEILOES_PUBLICOS);
-                    else if (urlPublica(nativeEvent.url)) navegador.current?.injectJavaScript(ROLAR_PARA_LOTES);
-                  }}
-                  onMessage={importarDaPagina}
-                  onError={() => setErro('A Vitrine não carregou. Tente novamente mais tarde ou cadastre o lote manualmente.')} />
-              </View>
-              <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={() => navegador.current?.injectJavaScript(LER_LOTE_VISIVEL)}><Text style={styles.botaoTexto}>IMPORTAR LOTE ABERTO</Text></TouchableOpacity>
-              <TouchableOpacity accessibilityRole="button" onPress={() => setVitrineAberta(false)}><Text style={styles.label}>Fechar Vitrine</Text></TouchableOpacity>
+              <Text style={styles.orientacao}>A Vitrine abre em tela cheia. Abra o detalhe de um lote e toque em IMPORTAR LOTE ABERTO.</Text>
             </View>}
           </View>}
           {modo === 'pre' && <View style={[styles.card, { marginTop: 16 }]}>
@@ -352,6 +339,26 @@ export default function App() {
           <Text style={styles.rodape}>App Leilão • MVP v0.1</Text>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Modal visible={vitrineAberta && modo === 'pre'} animationType="slide" onRequestClose={() => setVitrineAberta(false)}>
+        <SafeAreaView style={styles.tela}>
+          <View style={styles.barraVitrine}>
+            <TouchableOpacity accessibilityRole="button" onPress={() => setVitrineAberta(false)}><Text style={styles.label}>Fechar Vitrine</Text></TouchableOpacity>
+            <Text style={styles.orientacao}>Caixa · consulta pública</Text>
+          </View>
+          <WebView ref={navegador} style={styles.navegadorTelaCheia} source={{ uri: vitrineUrl }} javaScriptEnabled
+            originWhitelist={['https://vitrinedejoias.caixa.gov.br']}
+            onShouldStartLoadWithRequest={({ url }) => urlPublica(url)}
+            onOpenWindow={(evento) => { const url = evento.nativeEvent.targetUrl; if (urlPublica(url)) setVitrineUrl(url); }}
+            onLoadEnd={({ nativeEvent }) => {
+              if (paginaCronogramaPublico(nativeEvent.url)) navegador.current?.injectJavaScript(LER_LEILOES_PUBLICOS);
+              else if (urlPublica(nativeEvent.url)) navegador.current?.injectJavaScript(ROLAR_PARA_LOTES);
+            }}
+            onMessage={importarDaPagina}
+            onError={() => setErro('A Vitrine não carregou. Tente novamente mais tarde ou cadastre o lote manualmente.')} />
+          <TouchableOpacity accessibilityRole="button" style={styles.importarTelaCheia} onPress={() => navegador.current?.injectJavaScript(LER_LOTE_VISIVEL)}><Text style={styles.botaoTexto}>IMPORTAR LOTE ABERTO</Text></TouchableOpacity>
+          {!!erro && <Text style={styles.erro}>{erro}</Text>}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -365,7 +372,9 @@ const styles = StyleSheet.create({
   modo: { flex: 1, backgroundColor: '#151922', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#303746' },
   modoAtivo: { borderColor: '#f4c95d' },
   modoTexto: { color: '#fff', fontWeight: '700', textAlign: 'center' },
-  navegador: { height: 440, marginTop: 14, borderRadius: 12, overflow: 'hidden' },
+  barraVitrine: { paddingHorizontal: 18, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navegadorTelaCheia: { flex: 1 },
+  importarTelaCheia: { backgroundColor: '#f4c95d', padding: 17, margin: 12, borderRadius: 12 },
   card: { backgroundColor: '#151922', borderRadius: 18, padding: 18 },
   titulo: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 12 },
   orientacao: { color: '#f4c95d', fontSize: 13, lineHeight: 18, marginBottom: 4 },

@@ -18,6 +18,10 @@ A Vitrine oficial exibiu em 17/09/2026 lotes em exposição no [leilão 227/2026
 
 `npm test`: 23 testes passaram. `npx expo export --platform android`: bundle Android gerado. O [GitHub Actions, execução 35257762332](https://github.com/BidX7/App-Leilao/actions/runs/35257762332), compilou e publicou o artefato `App-Leilao-Vitrine-experimental` (ZIP com APK, cerca de 27,6 MB). Os testes verificam a rejeição de páginas de origem diferente, peso e lance ausentes, e que nenhum teor ou peso de ouro é inventado na importação. A interação da Vitrine dentro do WebView e a instalação desta versão ainda precisam ser verificadas em um Android físico.
 
+### Correção após teste no aparelho
+
+O usuário confirmou que a página inicial da Caixa abriu na APK anterior, mas não encontrou uma opção acessível para abrir um lote. A nova versão mantém a disposição da tela, lê do cronograma oficial os leilões marcados **Em exposição** e exibe opções tocáveis para abrir cada leilão. A página do leilão rola até os cartões publicados. Foi conferido na Vitrine pública que havia links para Campina Grande/PB e Patos de Minas/MG e que o detalhe de um lote mostrava os campos de número, descrição e lance mínimo usados pela importação. **25 testes passaram**; o bundle Android foi gerado; a [execução 35266960874](https://github.com/BidX7/App-Leilao/actions/runs/35266960874) concluiu a APK com sucesso. A escolha e importação pelo WebView na APK corrigida ainda dependem de teste no Android do usuário.
+
 ## Limites e próximos passos
 
 O anúncio não prova a composição efetiva do lote. O pré-lance continua sendo um cenário condicional baseado na hipótese informada pelo usuário; não fornece um lance seguro independente dessa hipótese. Não há login na Caixa, lances pelo aplicativo, acesso a lotes privados de terceiros nem atualização automática de lances atuais. O cadastro manual não sincroniza entre aparelhos. Se a Caixa mudar a estrutura da página pública, a extração do detalhe pode exigir ajuste.

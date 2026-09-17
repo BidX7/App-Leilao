@@ -3,7 +3,7 @@ import { Image, KeyboardAvoidingView, Linking, Platform, SafeAreaView, ScrollVie
 import { StatusBar } from 'expo-status-bar';
 import { analisarLote, analisarRefino3M, formatarReal, parseNumero } from './src/auction';
 import { extrairDadosLote, extrairLotePublico } from './src/caixa';
-import { LER_LOTE_VISIVEL, URL_VITRINE, urlPublica } from './src/vitrine';
+import { extrairLeiloesPublicos, LER_LEILOES_PUBLICOS, LER_LOTE_VISIVEL, ROLAR_PARA_LOTES, URL_VITRINE, urlPublica } from './src/vitrine';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { analisarPreLance } from './src/prelance';
@@ -52,6 +52,7 @@ export default function App() {
   const [loteCaixa, setLoteCaixa] = useState(null);
   const [vitrineAberta, setVitrineAberta] = useState(false);
   const [vitrineUrl, setVitrineUrl] = useState(URL_VITRINE);
+  const [leiloesPublicos, setLeiloesPublicos] = useState([]);
   const [lotePendente, setLotePendente] = useState(null);
   const [loteManual, setLoteManual] = useState({ numero: '', descricao: '', pesoTotal: '', lanceMinimo: '' });
   const [salvos, setSalvos] = useState([]);
@@ -86,7 +87,12 @@ export default function App() {
 
   function importarDaPagina(evento) {
     try {
-      selecionarLote(extrairLotePublico(JSON.parse(evento.nativeEvent.data)));
+      const mensagem = JSON.parse(evento.nativeEvent.data);
+      if (mensagem.tipo === 'leiloes') {
+        setLeiloesPublicos(extrairLeiloesPublicos(mensagem));
+        return;
+      }
+      selecionarLote(extrairLotePublico(mensagem));
     } catch (error) { setErro(error.message || 'Abra primeiro o detalhe de um lote na Vitrine.'); }
   }
 
@@ -196,14 +202,20 @@ export default function App() {
           {modo === 'pre' && <View style={styles.card}>
             <Text style={styles.titulo}>Lotes públicos da Caixa</Text>
             <Text style={styles.orientacao}>Consulte lotes em exposição no site oficial, sem cadastro. Escolha um leilão e toque no lote para ver foto, peso total e lance mínimo.</Text>
-            <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={() => { setVitrineUrl(URL_VITRINE); setVitrineAberta(true); setErro(''); }}><Text style={styles.botaoTexto}>ESCOLHER LOTE PÚBLICO</Text></TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={() => { setVitrineUrl(URL_VITRINE); setLeiloesPublicos([]); setVitrineAberta(true); setErro(''); }}><Text style={styles.botaoTexto}>ESCOLHER LOTE PÚBLICO</Text></TouchableOpacity>
             {vitrineAberta && <View>
-              <Text style={styles.info}>Na Vitrine: escolha mês, leilão e abra o detalhe do lote. Depois toque no botão abaixo.</Text>
+              <Text style={styles.info}>Toque num leilão em exposição abaixo. Depois abra um lote na Vitrine e toque em importar.</Text>
+              {leiloesPublicos.map((leilao) => <TouchableOpacity key={leilao.url} accessibilityRole="button" onPress={() => { setVitrineUrl(leilao.url); setErro(''); }}><Text style={styles.label}>{leilao.descricao}</Text></TouchableOpacity>)}
+              {!leiloesPublicos.length && <Text style={styles.orientacao}>Se não aparecerem leilões aqui, confira o cronograma na janela ou use o cadastro manual.</Text>}
               <View style={styles.navegador}>
                 <WebView ref={navegador} source={{ uri: vitrineUrl }} javaScriptEnabled
                   originWhitelist={['https://vitrinedejoias.caixa.gov.br']}
                   onShouldStartLoadWithRequest={({ url }) => urlPublica(url)}
                   onOpenWindow={(evento) => { const url = evento.nativeEvent.targetUrl; if (urlPublica(url)) setVitrineUrl(url); }}
+                  onLoadEnd={({ nativeEvent }) => {
+                    if (nativeEvent.url === URL_VITRINE) navegador.current?.injectJavaScript(LER_LEILOES_PUBLICOS);
+                    else if (urlPublica(nativeEvent.url)) navegador.current?.injectJavaScript(ROLAR_PARA_LOTES);
+                  }}
                   onMessage={importarDaPagina}
                   onError={() => setErro('A Vitrine não carregou. Tente novamente mais tarde ou cadastre o lote manualmente.')} />
               </View>

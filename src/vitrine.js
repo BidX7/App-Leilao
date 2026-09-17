@@ -1,5 +1,45 @@
 export const URL_VITRINE = 'https://vitrinedejoias.caixa.gov.br/Paginas/default.aspx';
 
+// Consulta somente links públicos de leilões em exposição exibidos no cronograma.
+export const LER_LEILOES_PUBLICOS = `(() => {
+  let tentativas = 0;
+  const consultar = () => {
+    const leiloes = Array.from(document.querySelectorAll('a[href*="vitrine-leilao.aspx"]'))
+      .map(a => { const linha = a.closest('tr'); const colunas = linha?.querySelectorAll('td');
+        return { url: a.href, texto: linha?.innerText || '',
+          nome: colunas?.length >= 7 ? 'Em exposição · ' + colunas[3].innerText.trim() + ' · ' + colunas[4].innerText.trim() : '' }; })
+      .filter(item => /Em exposição/i.test(item.texto))
+      .map(item => ({ url: item.url, descricao: item.nome || item.texto.replace(/\\s+/g, ' ').trim() }));
+    if (leiloes.length || ++tentativas >= 12) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ tipo: 'leiloes', url: location.href, leiloes }));
+    } else setTimeout(consultar, 750);
+  };
+  consultar();
+})(); true;`;
+
+export const ROLAR_PARA_LOTES = `(() => {
+  let tentativas = 0;
+  const mostrar = () => {
+    const titulo = Array.from(document.querySelectorAll('h3')).find(x => /Resultados/i.test(x.textContent));
+    if (titulo && /Nº Lote\\s+\\d{4}\\./.test(document.body.innerText)) titulo.scrollIntoView();
+    else if (++tentativas < 12) setTimeout(mostrar, 750);
+  };
+  mostrar();
+})(); true;`;
+
+export function extrairLeiloesPublicos(mensagem) {
+  if (mensagem?.url !== URL_VITRINE || !Array.isArray(mensagem.leiloes))
+    throw new Error('Não foi possível verificar o cronograma oficial.');
+  return mensagem.leiloes.filter(({ url, descricao }) => {
+    try {
+      const pagina = new URL(url);
+      return pagina.protocol === 'https:' && pagina.hostname === 'vitrinedejoias.caixa.gov.br' &&
+        pagina.pathname.toLowerCase() === '/paginas/vitrine-leilao.aspx' &&
+        pagina.searchParams.has('leilao') && /Em exposição/i.test(descricao);
+    } catch { return false; }
+  }).slice(0, 30);
+}
+
 // Executado somente na página pública da Vitrine aberta pelo próprio usuário.
 // Lê o modal visível, sem acessar login, contratos ou dados de compradores.
 export const LER_LOTE_VISIVEL = `(() => {
